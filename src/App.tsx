@@ -16,16 +16,23 @@ declare global {
 const CONTRACT_ADDRESS = "inj1qe06nfmzk70xg78knp5qsn3e6fsltqu9sgan8m";
 
 function App() {
+  // 计数器状态
   const [count, setCount] = useState<number>(0);
+  // 钱包地址
   const [address, setAddress] = useState<string>("");
+  // 钱包是否已连接
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  // 加载状态
   const [loading, setLoading] = useState<boolean>(false);
+  // 错误信息
   const [error, setError] = useState<string>("");
 
+  // 钱包策略、广播器、合约查询API
   const [walletStrategy, setWalletStrategy] = useState<any>(null);
   const [broadcaster, setBroadcaster] = useState<any>(null);
   const [wasmApi, setWasmApi] = useState<any>(null);
 
+  // 初始化钱包策略和API
   useEffect(() => {
     const strategy = new WalletStrategy({
       chainId: ChainId.Mainnet,
@@ -36,23 +43,31 @@ function App() {
     setWasmApi(new IndexerGrpcMetaApi("https://sentry.exchange.grpc-web.injective.network"));
   }, []);
 
+  // 连接钱包（参考 Injective 官方文档 WalletStrategy 规范流程）
   const connectWallet = async () => {
-    if (!walletStrategy) return;
     setLoading(true);
     setError("");
     try {
+      // 检查 Keplr 是否安装
       if (!window.keplr) {
         setError("Please install Keplr wallet extension");
+        setLoading(false);
         return;
       }
+      // 1. 向 Keplr 请求授权（会弹出连接钱包界面）
       await window.keplr.enable("injective-1");
-      // WalletStrategy 2.x 可能用 init() 或 connect(), 这里都尝试
-      if (typeof walletStrategy.init === "function") {
-        await walletStrategy.init();
-      } else if (typeof walletStrategy.connect === "function") {
-        await walletStrategy.connect();
-      }
-      const addresses = await walletStrategy.getAddresses();
+
+      // 2. 初始化 Injective 钱包策略
+      const strategy = new WalletStrategy({
+        chainId: ChainId.Mainnet,
+        wallet: Wallet.Keplr,
+      });
+      
+      setWalletStrategy(strategy);
+      setBroadcaster(new MsgBroadcaster({ walletStrategy: strategy, network: Network.MainnetLB }));
+      setWasmApi(new IndexerGrpcMetaApi("https://sentry.exchange.grpc-web.injective.network"));
+      // 3. 获取钱包地址
+      const addresses = await strategy.getAddresses();
       if (addresses.length > 0) {
         setAddress(addresses[0]);
         setIsConnected(true);
@@ -67,6 +82,7 @@ function App() {
     }
   };
 
+  // 查询链上计数器状态
   const fetchCount = async () => {
     if (!wasmApi) return;
     setError("");
@@ -75,6 +91,7 @@ function App() {
         address: CONTRACT_ADDRESS,
         query: { get_count: {} }
       });
+      // 解析链上返回的 base64 数据
       const countData = JSON.parse(Buffer.from(response.data, "base64").toString("utf-8"));
       setCount(countData.count || 0);
     } catch (err) {
@@ -82,6 +99,7 @@ function App() {
     }
   };
 
+  // 发起链上交易时，MsgBroadcaster 会自动弹出钱包签名界面
   const increment = async () => {
     if (!address || !broadcaster) {
       setError("Wallet not connected");
@@ -90,19 +108,30 @@ function App() {
     setLoading(true);
     setError("");
     try {
+      const prevCount = count;
       const msg = MsgExecuteContract.fromJSON({
         sender: address,
         contractAddress: CONTRACT_ADDRESS,
         msg: { increment: {} },
         funds: [],
       });
+      // 这里会自动弹出钱包签名界面
       await broadcaster.broadcast({
         msgs: [msg],
         injectiveAddress: address,
       });
-      setTimeout(() => {
-        fetchCount();
-      }, 3000);
+      // 轮询链上数据，直到计数变化或超时
+      let retries = 10;
+      let updated = false;
+      while (retries-- > 0) {
+        await new Promise(res => setTimeout(res, 1500));
+        await fetchCount();
+        if (count !== prevCount) {
+          updated = true;
+          break;
+        }
+      }
+      if (!updated) setError("链上数据未及时同步，请稍后刷新。");
     } catch (err) {
       setError("Failed to increment counter");
     } finally {
@@ -110,6 +139,7 @@ function App() {
     }
   };
 
+  // 重置计数器
   const reset = async () => {
     if (!address || !broadcaster) {
       setError("Wallet not connected");
@@ -128,9 +158,18 @@ function App() {
         msgs: [msg],
         injectiveAddress: address,
       });
-      setTimeout(() => {
-        fetchCount();
-      }, 3000);
+      // 轮询链上数据，直到计数归零或超时
+      let retries = 10;
+      let updated = false;
+      while (retries-- > 0) {
+        await new Promise(res => setTimeout(res, 1500));
+        await fetchCount();
+        if (count === 0) {
+          updated = true;
+          break;
+        }
+      }
+      if (!updated) setError("链上数据未及时同步，请稍后刷新。");
     } catch (err) {
       setError("Failed to reset counter");
     } finally {
@@ -138,6 +177,7 @@ function App() {
     }
   };
 
+  // 断开钱包连接
   const disconnectWallet = async () => {
     if (walletStrategy) {
       if (typeof walletStrategy.disconnect === "function") {
@@ -150,6 +190,7 @@ function App() {
     setError("");
   };
 
+  // 钱包连接后自动查询计数
   useEffect(() => {
     if (isConnected) {
       fetchCount();
