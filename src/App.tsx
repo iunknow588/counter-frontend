@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { WalletStrategy } from "@injectivelabs/wallet-strategy";
 import { ChainId } from "@injectivelabs/ts-types";
 import { Network, getNetworkInfo } from "@injectivelabs/networks";
 import {
   MsgExecuteContractCompat,
-  ChainRestWasmApi,
-  type TxRaw
+  ChainRestWasmApi
 } from "@injectivelabs/sdk-ts";
 import { Buffer } from "buffer";
 

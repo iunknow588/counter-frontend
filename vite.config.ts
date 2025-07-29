@@ -1,9 +1,8 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import { nodePolyfills } from "@bangjelkoski/vite-plugin-node-polyfills";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  plugins: [react(), nodePolyfills({ protocolImports: true })],
+  plugins: [react()],
   define: {
     global: "globalThis",
   },
@@ -14,6 +13,12 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ["buffer"],
+    exclude: ["@magic-sdk/provider", "@magic-sdk/types"],
+  },
+  build: {
+    rollupOptions: {
+      external: ["@magic-sdk/provider", "@magic-sdk/types"],
+    },
   },
   base: "/counter-frontend/", // 部署到 GitHub Pages 时需设置为仓库名
 });
