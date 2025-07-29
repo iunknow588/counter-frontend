@@ -13,7 +13,11 @@ declare global {
   }
 }
 
-const CONTRACT_ADDRESS = "inj1qe06nfmzk70xg78knp5qsn3e6fsltqu9sgan8m";
+// 测试网配置
+const CHAIN_ID = ChainId.Testnet;
+const NETWORK = Network.TestnetK8s;
+const GRPC_URL = "https://sentry.testnet.exchange.grpc-web.injective.network";
+const CONTRACT_ADDRESS = "<你的测试网合约地址>"; // 请替换为测试网合约地址
 
 function App() {
   // 计数器状态
@@ -55,17 +59,17 @@ function App() {
         return;
       }
       // 1. 向 Keplr 请求授权（会弹出连接钱包界面）
-      await window.keplr.enable("injective-1");
+      await window.keplr.enable(CHAIN_ID);
 
-      // 2. 初始化 Injective 钱包策略
+      // 2. 创建 Injective 钱包策略（测试网）
       const strategy = new WalletStrategy({
-        chainId: ChainId.Mainnet,
+        chainId: CHAIN_ID,
         wallet: Wallet.Keplr,
       });
       
       setWalletStrategy(strategy);
-      setBroadcaster(new MsgBroadcaster({ walletStrategy: strategy, network: Network.MainnetLB }));
-      setWasmApi(new IndexerGrpcMetaApi("https://sentry.exchange.grpc-web.injective.network"));
+      setBroadcaster(new MsgBroadcaster({ walletStrategy: strategy, network: NETWORK }));
+      setWasmApi(new IndexerGrpcMetaApi(GRPC_URL));
       // 3. 获取钱包地址
       const addresses = await strategy.getAddresses();
       if (addresses.length > 0) {
