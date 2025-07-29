@@ -79,56 +79,15 @@ else
     print_message $YELLOW "⏭️  跳过提交步骤"
 fi
 
-# 步骤 3: 部署到 GitHub Pages
-print_message $BLUE "🌐 步骤 3: 部署到 GitHub Pages..."
+# 步骤 3: 调用部署脚本
+print_message $BLUE "🌐 步骤 3: 调用部署脚本..."
+echo ""
 
-# 切换到 gh-pages 分支
-print_message $BLUE "🔄 切换到 gh-pages 分支..."
-if git checkout gh-pages; then
-    print_message $GREEN "✅ 切换到 gh-pages 分支成功"
+# 调用 deploy.sh 脚本
+if ./deploy.sh; then
+    print_message $GREEN "✅ 部署脚本执行成功！"
 else
-    print_message $RED "❌ 切换到 gh-pages 分支失败！"
-    exit 1
-fi
-
-# 清理旧文件
-print_message $BLUE "🧹 清理旧文件..."
-rm -rf assets/ index.html
-
-# 复制新构建文件
-print_message $BLUE "📋 复制新构建文件..."
-if cp -r dist/* .; then
-    print_message $GREEN "✅ 文件复制成功"
-else
-    print_message $RED "❌ 文件复制失败！"
-    exit 1
-fi
-
-# 提交部署更改
-print_message $BLUE "💾 提交部署更改..."
-deploy_message="Deploy to GitHub Pages - $(date '+%Y-%m-%d %H:%M:%S')"
-if git add . && git commit -m "$deploy_message"; then
-    print_message $GREEN "✅ 部署提交成功"
-else
-    print_message $RED "❌ 部署提交失败！"
-    exit 1
-fi
-
-# 推送到远程仓库
-print_message $BLUE "📤 推送到远程仓库..."
-if git push origin gh-pages; then
-    print_message $GREEN "✅ 部署推送成功！"
-else
-    print_message $RED "❌ 部署推送失败！"
-    exit 1
-fi
-
-# 回到 main 分支
-print_message $BLUE "🔄 回到 main 分支..."
-if git checkout main; then
-    print_message $GREEN "✅ 回到 main 分支成功"
-else
-    print_message $RED "❌ 回到 main 分支失败！"
+    print_message $RED "❌ 部署脚本执行失败！"
     exit 1
 fi
 
