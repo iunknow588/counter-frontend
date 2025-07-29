@@ -52,37 +52,47 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      // 检查 Keplr 是否安装
+      console.log("[connectWallet] 开始连接钱包");
       if (!window.keplr) {
         setError("Please install Keplr wallet extension");
         setLoading(false);
         return;
       }
-      // 1. 向 Keplr 请求授权（会弹出连接钱包界面）
+      console.log("[connectWallet] 调用 keplr.enable，准备弹出授权界面，chainId:", CHAIN_ID);
       await window.keplr.enable(CHAIN_ID);
-
+      console.log("[connectWallet] keplr.enable 调用完成，用户已授权或已授权过");
+      // 检查 Keplr 是否已连接 Injective 测试网
+      if (window.keplr.experimentalSuggestChain) {
+        console.log("[connectWallet] Keplr 支持 experimentalSuggestChain");
+      }
       // 2. 创建 Injective 钱包策略（测试网）
+      console.log("[connectWallet] 创建 WalletStrategy 实例");
       const strategy = new WalletStrategy({
         chainId: CHAIN_ID,
         wallet: Wallet.Keplr,
       });
-      
       setWalletStrategy(strategy);
       setBroadcaster(new MsgBroadcaster({ walletStrategy: strategy, network: NETWORK }));
       setWasmApi(new IndexerGrpcMetaApi(GRPC_URL));
       // 3. 获取钱包地址
+      console.log("[connectWallet] 调用 strategy.getAddresses()");
       const addresses = await strategy.getAddresses();
+      console.log("[connectWallet] 获取到钱包地址:", addresses);
       if (addresses.length > 0) {
         setAddress(addresses[0]);
         setIsConnected(true);
+        console.log("[connectWallet] 钱包连接成功，isConnected = true");
         await fetchCount();
       } else {
         setError("No addresses found in wallet");
+        console.warn("[connectWallet] 钱包未返回地址");
       }
     } catch (err: any) {
-      setError(`Failed to connect wallet: ${err?.message || err}`);
+      setError(`[connectWallet] Failed: ${err?.message || err}`);
+      console.error("[connectWallet] 连接钱包异常", err);
     } finally {
       setLoading(false);
+      console.log("[connectWallet] 连接流程结束");
     }
   };
 
@@ -91,15 +101,19 @@ function App() {
     if (!wasmApi) return;
     setError("");
     try {
+      console.log("[fetchCount] 查询合约计数");
       const response = await wasmApi.fetchSmartContractState({
         address: CONTRACT_ADDRESS,
         query: { get_count: {} }
       });
+      console.log("[fetchCount] 合约返回:", response);
       // 解析链上返回的 base64 数据
       const countData = JSON.parse(Buffer.from(response.data, "base64").toString("utf-8"));
       setCount(countData.count || 0);
+      console.log("[fetchCount] 当前计数:", countData.count);
     } catch (err) {
       setError("Failed to fetch count from contract");
+      console.error("[fetchCount] 查询异常", err);
     }
   };
 
@@ -119,11 +133,13 @@ function App() {
         msg: { increment: {} },
         funds: [],
       });
+      console.log("[increment] 构造消息:", msg);
       // 这里会自动弹出钱包签名界面
       await broadcaster.broadcast({
         msgs: [msg],
         injectiveAddress: address,
       });
+      console.log("[increment] 交易已广播，开始轮询链上计数");
       // 轮询链上数据，直到计数变化或超时
       let retries = 10;
       let updated = false;
@@ -136,8 +152,10 @@ function App() {
         }
       }
       if (!updated) setError("链上数据未及时同步，请稍后刷新。");
+      else console.log("[increment] 计数已更新:", count);
     } catch (err) {
       setError("Failed to increment counter");
+      console.error("[increment] 增加计数异常", err);
     } finally {
       setLoading(false);
     }
