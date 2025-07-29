@@ -13,12 +13,15 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@injectivelabs/indexer-proto-ts": "^1.13.14",
     "@injectivelabs/sdk-ts": "^1.15.43",
     "@injectivelabs/wallet-strategy": "^1.15.44",
+    "@injectivelabs/wallet-ts": "^1.14.41",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@types/node": "^24.1.0",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^7.2.0",
