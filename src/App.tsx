@@ -188,7 +188,7 @@ function App() {
           >
             {loading ? "Connecting..." : "Connect Wallet"}
           </button>
-          {!window.keplr && (
+          {typeof window !== "undefined" && !("keplr" in window) && (
             <p style={{ color: "#f57c00", marginTop: "10px" }}>
               Please install <a href="https://keplr.app/" target="_blank" rel="noopener noreferrer">Keplr wallet</a> extension
             </p>
