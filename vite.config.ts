@@ -1,24 +1,24 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
+// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: './',
   define: {
-    global: "globalThis",
+    global: 'globalThis',
   },
   resolve: {
     alias: {
-      buffer: "buffer/",
+      buffer: 'buffer',
     },
   },
   optimizeDeps: {
-    include: ["buffer"],
-    exclude: ["@magic-sdk/provider", "@magic-sdk/types"],
+    exclude: ['@magic-sdk/provider', '@magic-sdk/types'],
   },
   build: {
     rollupOptions: {
-      external: ["@magic-sdk/provider", "@magic-sdk/types"],
+      external: ['@magic-sdk/provider', '@magic-sdk/types'],
     },
   },
-  base: "/counter-frontend/", // 部署到 GitHub Pages 时需设置为仓库名
-});
+})
