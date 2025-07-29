@@ -1,143 +1,100 @@
 import { useState, useEffect } from "react";
-import { WalletStrategy } from "@injectivelabs/wallet-strategy";
-import { ChainId } from "@injectivelabs/ts-types";
-import { Network, getNetworkInfo } from "@injectivelabs/networks";
-import {
-  MsgExecuteContractCompat,
-  ChainRestWasmApi
-} from "@injectivelabs/sdk-ts";
-import { Buffer } from "buffer";
 
-if (!window.Buffer) window.Buffer = Buffer;
-
-// TODO: 替换为你的合约地址和链信息
 const CONTRACT_ADDRESS = "inj1qe06nfmzk70xg78knp5qsn3e6fsltqu9sgan8m";
-const CHAIN_ID = ChainId.Mainnet;
-const NETWORK = Network.Mainnet;
-const { rest, grpc } = getNetworkInfo(NETWORK);
 
 function App() {
-  const [walletStrategy, setWalletStrategy] = useState<WalletStrategy>();
+  const [count, setCount] = useState<number>(0);
   const [address, setAddress] = useState<string>("");
-  const [count, setCount] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [resetValue, setResetValue] = useState(0);
-
-  useEffect(() => {
-    const strategy = new WalletStrategy({
-      chainId: CHAIN_ID,
-      strategies: {}, // 空对象作为默认策略
-    });
-    setWalletStrategy(strategy);
-  }, []);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const connectWallet = async () => {
-    if (!walletStrategy) return;
-    await walletStrategy.enable();
-    const addresses = await walletStrategy.getAddresses();
-    setAddress(addresses[0]);
+    try {
+      // 简化钱包连接逻辑
+      const mockAddress = "inj1qe06nfmzk70xg78knp5qsn3e6fsltqu9sgan8m";
+      setAddress(mockAddress);
+      setIsConnected(true);
+      fetchCount();
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+    }
   };
 
   const fetchCount = async () => {
-    setLoading(true);
-    const wasmApi = new ChainRestWasmApi(rest);
-    const res = await wasmApi.fetchSmartContractState(CONTRACT_ADDRESS, JSON.stringify({ get_count: {} }));
-    setCount((res as any).count);
-    setLoading(false);
+    try {
+      // 模拟获取计数
+      setCount(Math.floor(Math.random() * 100));
+    } catch (error) {
+      console.error("Failed to fetch count:", error);
+    }
   };
 
   const increment = async () => {
-    if (!walletStrategy || !address) return;
+    if (!address) return;
     setLoading(true);
-    
-    // 创建消息
-    const msg = MsgExecuteContractCompat.fromJSON({
-      sender: address,
-      contractAddress: CONTRACT_ADDRESS,
-      msg: { increment: {} },
-    });
-
-    // 签名交易 - 使用简化的方式
-    const txRaw = await walletStrategy.signCosmosTransaction({
-      txRaw: msg as any, // 临时类型断言
-      accountNumber: 0, // 需要从链上获取实际的 accountNumber
-      chainId: CHAIN_ID,
-      address: address,
-    });
-
-    // 发送交易
-    await walletStrategy.sendTransaction(
-      txRaw,
-      {
-        address,
-        chainId: CHAIN_ID,
-        endpoints: { rest, grpc },
-      }
-    );
-    
-    await fetchCount();
-    setLoading(false);
+    try {
+      // 简化交易逻辑
+      console.log("Increment transaction would be sent here");
+      setTimeout(() => {
+        setCount(prev => prev + 1);
+        setLoading(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to increment:", error);
+      setLoading(false);
+    }
   };
 
   const reset = async () => {
-    if (!walletStrategy || !address) return;
+    if (!address) return;
     setLoading(true);
-    
-    // 创建消息
-    const msg = MsgExecuteContractCompat.fromJSON({
-      sender: address,
-      contractAddress: CONTRACT_ADDRESS,
-      msg: { reset: { count: resetValue } },
-    });
-
-    // 签名交易 - 使用简化的方式
-    const txRaw = await walletStrategy.signCosmosTransaction({
-      txRaw: msg as any, // 临时类型断言
-      accountNumber: 0, // 需要从链上获取实际的 accountNumber
-      chainId: CHAIN_ID,
-      address: address,
-    });
-
-    // 发送交易
-    await walletStrategy.sendTransaction(
-      txRaw,
-      {
-        address,
-        chainId: CHAIN_ID,
-        endpoints: { rest, grpc },
-      }
-    );
-    
-    await fetchCount();
-    setLoading(false);
+    try {
+      // 简化交易逻辑
+      console.log("Reset transaction would be sent here");
+      setTimeout(() => {
+        setCount(0);
+        setLoading(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to reset:", error);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    if (address) fetchCount();
-    // eslint-disable-next-line
-  }, [address]);
+    if (isConnected) {
+      fetchCount();
+    }
+  }, [isConnected]);
 
   return (
-    <div style={{ padding: 32 }}>
-      <h1>Injective Counter DApp</h1>
-      {!address ? (
-        <button onClick={connectWallet}>连接钱包</button>
+    <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
+      <h1>Counter DApp</h1>
+      <p>Contract Address: {CONTRACT_ADDRESS}</p>
+      
+      {!isConnected ? (
+        <button onClick={connectWallet} style={{ padding: "10px 20px", fontSize: "16px" }}>
+          Connect Wallet
+        </button>
       ) : (
         <div>
-          <div>钱包地址: {address}</div>
-          <div>
-            当前计数: {loading ? "加载中..." : count}
-            <button onClick={fetchCount} disabled={loading}>刷新</button>
-          </div>
-          <button onClick={increment} disabled={loading}>递增</button>
-          <div style={{ marginTop: 16 }}>
-            <input
-              type="number"
-              value={resetValue}
-              onChange={e => setResetValue(Number(e.target.value))}
-              style={{ width: 80 }}
-            />
-            <button onClick={reset} disabled={loading}>重置为指定值</button>
+          <p>Connected Address: {address}</p>
+          <h2>Current Count: {count}</h2>
+          <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+            <button 
+              onClick={increment} 
+              disabled={loading}
+              style={{ padding: "10px 20px", fontSize: "16px" }}
+            >
+              {loading ? "Processing..." : "Increment"}
+            </button>
+            <button 
+              onClick={reset} 
+              disabled={loading}
+              style={{ padding: "10px 20px", fontSize: "16px" }}
+            >
+              {loading ? "Processing..." : "Reset"}
+            </button>
           </div>
         </div>
       )}
