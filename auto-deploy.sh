@@ -45,15 +45,14 @@ else
     SKIP_COMMIT=false
 fi
 
-# 步骤 1: 本地构建测试（可选）
-print_message $BLUE "📦 步骤 1: 跳过本地构建测试..."
-print_message $YELLOW "⚠️  本地构建环境有问题，将使用 GitHub Actions 进行远程构建"
-# if npm run build; then
-#     print_message $GREEN "✅ 本地构建成功！"
-# else
-#     print_message $RED "❌ 本地构建失败！"
-#     exit 1
-# fi
+# 步骤 1: 本地构建测试
+print_message $BLUE "📦 步骤 1: 本地构建测试..."
+if npm run build; then
+    print_message $GREEN "✅ 本地构建成功！"
+else
+    print_message $RED "❌ 本地构建失败！"
+    exit 1
+fi
 
 # 步骤 2: 提交更改（如果有）
 if [ "$SKIP_COMMIT" = false ]; then
@@ -100,7 +99,7 @@ echo ""
 
 # 显示部署统计
 print_message $BLUE "📊 部署统计："
-echo "  - 本地构建: ⏭️  跳过"
+echo "  - 本地构建: ✅ 成功"
 if [ "$SKIP_COMMIT" = false ]; then
     echo "  - 代码提交: ✅ 成功"
     echo "  - 远程推送: ✅ 成功"
