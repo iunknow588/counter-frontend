@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { Buffer } from "buffer";
-import * as WalletTS from "@injectivelabs/wallet-ts";
-import * as IndexerProtoTS from "@injectivelabs/indexer-proto-ts";
-import { IndexerGrpcWasmApi } from "@injectivelabs/sdk-ts";
+import { Wallet, WalletStrategy, MsgBroadcaster } from "@injectivelabs/wallet-ts";
+import { ChainId } from "@injectivelabs/ts-types";
+import { IndexerGrpcMetaApi } from "@injectivelabs/sdk-ts";
+import { Network } from "@injectivelabs/networks";
+import { MsgExecuteContract } from "@injectivelabs/sdk-ts";
 
 // 类型声明，解决 window.keplr 报错
 declare global {
@@ -25,13 +27,13 @@ function App() {
   const [wasmApi, setWasmApi] = useState<any>(null);
 
   useEffect(() => {
-    const strategy = new WalletTS.WalletStrategy({
-      chainId: WalletTS.ChainId.Mainnet,
-      wallet: WalletTS.Wallet.Keplr,
+    const strategy = new WalletStrategy({
+      chainId: ChainId.Mainnet,
+      wallet: Wallet.Keplr,
     });
     setWalletStrategy(strategy);
-    setBroadcaster(new WalletTS.MsgBroadcaster({ walletStrategy: strategy, network: WalletTS.Network.MainnetLB }));
-    setWasmApi(new IndexerGrpcWasmApi("https://sentry.exchange.grpc-web.injective.network"));
+    setBroadcaster(new MsgBroadcaster({ walletStrategy: strategy, network: Network.MainnetLB }));
+    setWasmApi(new IndexerGrpcMetaApi("https://sentry.exchange.grpc-web.injective.network"));
   }, []);
 
   const connectWallet = async () => {
@@ -88,7 +90,7 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const msg = WalletTS.Msgs.MsgExecuteContract.fromJSON({
+      const msg = MsgExecuteContract.fromJSON({
         sender: address,
         contractAddress: CONTRACT_ADDRESS,
         msg: { increment: {} },
@@ -116,7 +118,7 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const msg = WalletTS.Msgs.MsgExecuteContract.fromJSON({
+      const msg = MsgExecuteContract.fromJSON({
         sender: address,
         contractAddress: CONTRACT_ADDRESS,
         msg: { reset: { count: 0 } },
