@@ -17,6 +17,7 @@ export default defineConfig({
     exclude: ['@magic-sdk/provider', '@magic-sdk/types'],
   },
   build: {
+    outDir: 'dist',
     rollupOptions: {
       external: ['@magic-sdk/provider', '@magic-sdk/types'],
     },

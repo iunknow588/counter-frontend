@@ -45,14 +45,15 @@ else
     SKIP_COMMIT=false
 fi
 
-# 步骤 1: 构建项目
-print_message $BLUE "📦 步骤 1: 构建项目..."
-if npm run build; then
-    print_message $GREEN "✅ 构建成功！"
-else
-    print_message $RED "❌ 构建失败！"
-    exit 1
-fi
+# 步骤 1: 本地构建测试（可选）
+print_message $BLUE "📦 步骤 1: 跳过本地构建测试..."
+print_message $YELLOW "⚠️  本地构建环境有问题，将使用 GitHub Actions 进行远程构建"
+# if npm run build; then
+#     print_message $GREEN "✅ 本地构建成功！"
+# else
+#     print_message $RED "❌ 本地构建失败！"
+#     exit 1
+# fi
 
 # 步骤 2: 提交更改（如果有）
 if [ "$SKIP_COMMIT" = false ]; then
@@ -73,10 +74,11 @@ if [ "$SKIP_COMMIT" = false ]; then
     if git add . && git commit -m "$commit_message"; then
         print_message $GREEN "✅ 提交成功！"
         
-        # 推送到远程仓库
-        print_message $BLUE "📤 推送到远程仓库..."
+        # 推送到远程仓库，触发 GitHub Actions
+        print_message $BLUE "📤 推送到远程仓库，触发自动部署..."
         if git push origin main; then
             print_message $GREEN "✅ 推送成功！"
+            print_message $BLUE "🔄 GitHub Actions 将自动构建和部署..."
         else
             print_message $RED "❌ 推送失败！"
             exit 1
@@ -89,32 +91,22 @@ else
     print_message $YELLOW "⏭️  跳过提交步骤"
 fi
 
-# 步骤 3: 调用部署脚本
-print_message $BLUE "🌐 步骤 3: 调用部署脚本..."
-echo ""
-
-# 调用 deploy.sh 脚本
-if ./deploy.sh; then
-    print_message $GREEN "✅ 部署脚本执行成功！"
-else
-    print_message $RED "❌ 部署脚本执行失败！"
-    exit 1
-fi
-
 # 完成
 echo ""
 print_message $GREEN "🎉 自动化部署完成！"
 print_message $BLUE "🌐 网站地址：https://iunknow588.github.io/counter-frontend/"
-print_message $YELLOW "⏰ 可能需要几分钟时间才能看到更新"
+print_message $YELLOW "⏰ GitHub Actions 正在自动部署，可能需要几分钟时间"
 echo ""
 
 # 显示部署统计
 print_message $BLUE "📊 部署统计："
-echo "  - 构建状态: ✅ 成功"
+echo "  - 本地构建: ⏭️  跳过"
 if [ "$SKIP_COMMIT" = false ]; then
     echo "  - 代码提交: ✅ 成功"
+    echo "  - 远程推送: ✅ 成功"
+    echo "  - 自动部署: 🔄 进行中"
 else
     echo "  - 代码提交: ⏭️  跳过"
+    echo "  - 自动部署: ⏭️  跳过"
 fi
-echo "  - 部署状态: ✅ 成功"
 echo "" 
