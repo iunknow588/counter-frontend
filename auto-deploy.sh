@@ -17,6 +17,16 @@ print_message() {
 print_message $BLUE "🚀 Counter DApp 自动化部署脚本"
 echo "=================================="
 
+# 清理 Git 仓库
+print_message $BLUE "🧹 清理 Git 仓库..."
+if git prune >/dev/null 2>&1; then
+    print_message $GREEN "✅ Git 仓库清理完成"
+fi
+if [ -f ".git/gc.log" ]; then
+    rm -f .git/gc.log
+    print_message $GREEN "✅ 清理 Git GC 日志"
+fi
+
 # 检查是否在 main 分支
 current_branch=$(git branch --show-current)
 if [ "$current_branch" != "main" ]; then

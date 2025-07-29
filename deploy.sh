@@ -2,6 +2,16 @@
 
 echo "🚀 开始部署 Counter DApp..."
 
+# 清理 Git 仓库
+echo "🧹 清理 Git 仓库..."
+if git prune >/dev/null 2>&1; then
+    echo "✅ Git 仓库清理完成"
+fi
+if [ -f ".git/gc.log" ]; then
+    rm -f .git/gc.log
+    echo "✅ 清理 Git GC 日志"
+fi
+
 # 检查是否在 main 分支
 current_branch=$(git branch --show-current)
 if [ "$current_branch" != "main" ]; then
