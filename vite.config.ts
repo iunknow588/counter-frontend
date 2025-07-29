@@ -17,10 +17,10 @@ export default defineConfig({
     exclude: ['@magic-sdk/provider', '@magic-sdk/types'],
   },
   build: {
+    sourcemap: true,
     outDir: 'dist',
     rollupOptions: {
       external: ['@magic-sdk/provider', '@magic-sdk/types'],
     },
-    sourcemap: true,
   },
 })
