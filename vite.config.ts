@@ -21,5 +21,6 @@ export default defineConfig({
     rollupOptions: {
       external: ['@magic-sdk/provider', '@magic-sdk/types'],
     },
+    sourcemap: true,
   },
 })
