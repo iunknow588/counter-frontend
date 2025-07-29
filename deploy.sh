@@ -1,57 +1,61 @@
 #!/bin/bash
 
-# 部署脚本 - 推送到 GitHub 并部署到 GitHub Pages
+echo "🚀 开始部署 Counter DApp..."
 
-echo "🚀 开始部署 counter-frontend 到 GitHub Pages..."
-
-# 检查是否在正确的目录
-if [ ! -f "package.json" ]; then
-    echo "❌ 错误：请在 counter-frontend 目录下运行此脚本"
+# 检查是否在 main 分支
+current_branch=$(git branch --show-current)
+if [ "$current_branch" != "main" ]; then
+    echo "❌ 错误：请在 main 分支上运行此脚本"
+    echo "当前分支：$current_branch"
     exit 1
 fi
 
-# 检查 git 是否已初始化
-if [ ! -d ".git" ]; then
-    echo "📁 初始化 git 仓库..."
-    git init
+# 构建项目
+echo "📦 构建项目..."
+npx vite build
+
+if [ $? -ne 0 ]; then
+    echo "❌ 构建失败！"
+    exit 1
 fi
 
-# 添加远程仓库
-echo "🔗 配置远程仓库..."
-git remote remove origin 2>/dev/null || true
-git remote add origin https://github.com/iunknow588/counter-frontend.git
+echo "✅ 构建成功！"
 
-# 添加所有文件
-echo "📦 添加文件到 git..."
-git add .
+# 切换到 gh-pages 分支
+echo "🔄 切换到 gh-pages 分支..."
+git checkout gh-pages
+
+if [ $? -ne 0 ]; then
+    echo "❌ 切换到 gh-pages 分支失败！"
+    exit 1
+fi
+
+# 清理旧文件
+echo "🧹 清理旧文件..."
+rm -rf assets/ index.html
+
+# 复制新构建文件
+echo "📋 复制新构建文件..."
+cp -r dist/* .
 
 # 提交更改
 echo "💾 提交更改..."
-git commit -m "feat: injective counter frontend with wallet integration"
+git add .
+git commit -m "Update with latest changes - $(date '+%Y-%m-%d %H:%M:%S')"
 
-# 推送到 GitHub
-echo "⬆️ 推送到 GitHub..."
-git push -u origin main
+# 推送到远程仓库
+echo "📤 推送到远程仓库..."
+git push origin gh-pages
 
-# 安装依赖（如果需要）
-if [ ! -d "node_modules" ]; then
-    echo "📦 安装依赖..."
-    npm install
+if [ $? -ne 0 ]; then
+    echo "❌ 推送失败！"
+    exit 1
 fi
 
-# 构建项目
-echo "🔨 构建项目..."
-npm run build
-
-# 部署到 GitHub Pages
-echo "🌐 部署到 GitHub Pages..."
-npm run deploy
+# 回到 main 分支
+echo "🔄 回到 main 分支..."
+git checkout main
 
 echo "✅ 部署完成！"
-echo "🌍 访问地址: https://iunknow588.github.io/counter-frontend/"
-echo ""
-echo "📝 注意事项："
-echo "1. 确保 GitHub 仓库已启用 GitHub Pages"
-echo "2. 在仓库设置中，Source 选择 'Deploy from a branch'"
-echo "3. Branch 选择 'gh-pages'"
-echo "4. 等待几分钟后即可访问" 
+echo "🌐 网站地址：https://iunknow588.github.io/counter-frontend/"
+echo "⏰ 可能需要几分钟时间才能看到更新" 
