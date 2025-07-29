@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Buffer } from "buffer";
 import * as WalletTS from "@injectivelabs/wallet-ts";
 import * as IndexerProtoTS from "@injectivelabs/indexer-proto-ts";
+import { IndexerGrpcWasmApi } from "@injectivelabs/sdk-ts";
 
 // 类型声明，解决 window.keplr 报错
 declare global {
@@ -30,7 +31,7 @@ function App() {
     });
     setWalletStrategy(strategy);
     setBroadcaster(new WalletTS.MsgBroadcaster({ walletStrategy: strategy, network: WalletTS.Network.MainnetLB }));
-    setWasmApi(new IndexerProtoTS.IndexerGrpcWasmApi("https://sentry.exchange.grpc-web.injective.network"));
+    setWasmApi(new IndexerGrpcWasmApi("https://sentry.exchange.grpc-web.injective.network"));
   }, []);
 
   const connectWallet = async () => {
