@@ -17,7 +17,7 @@ declare global {
 const CHAIN_ID = ChainId.Testnet;
 const NETWORK = Network.TestnetK8s;
 const GRPC_URL = "https://sentry.testnet.exchange.grpc-web.injective.network";
-const CONTRACT_ADDRESS = "<你的测试网合约地址>"; // 请替换为测试网合约地址
+const CONTRACT_ADDRESS = "inj1qe06nfmzk70xg78knp5qsn3e6fsltqu9sgan8m";
 
 function App() {
   // 计数器状态
