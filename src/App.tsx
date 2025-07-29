@@ -121,11 +121,13 @@ function App() {
   const increment = async () => {
     if (!address || !broadcaster) {
       setError("Wallet not connected");
+      console.warn("[increment] 钱包未连接，无法发起交易");
       return;
     }
     setLoading(true);
     setError("");
     try {
+      console.log("[increment] 当前计数:", count);
       const prevCount = count;
       const msg = MsgExecuteContract.fromJSON({
         sender: address,
@@ -133,31 +135,36 @@ function App() {
         msg: { increment: {} },
         funds: [],
       });
-      console.log("[increment] 构造消息:", msg);
-      // 这里会自动弹出钱包签名界面
+      console.log("[increment] 构造的消息:", msg);
+      console.log("[increment] 调用 broadcaster.broadcast，准备弹出签名界面");
       await broadcaster.broadcast({
         msgs: [msg],
         injectiveAddress: address,
       });
       console.log("[increment] 交易已广播，开始轮询链上计数");
-      // 轮询链上数据，直到计数变化或超时
       let retries = 10;
       let updated = false;
       while (retries-- > 0) {
         await new Promise(res => setTimeout(res, 1500));
         await fetchCount();
+        console.log(`[increment] 轮询中，当前计数: ${count}, 之前计数: ${prevCount}`);
         if (count !== prevCount) {
           updated = true;
           break;
         }
       }
-      if (!updated) setError("链上数据未及时同步，请稍后刷新。");
-      else console.log("[increment] 计数已更新:", count);
+      if (!updated) {
+        setError("链上数据未及时同步，请稍后刷新。");
+        console.warn("[increment] 计数未更新，链上同步可能有延迟");
+      } else {
+        console.log("[increment] 计数已更新:", count);
+      }
     } catch (err) {
       setError("Failed to increment counter");
       console.error("[increment] 增加计数异常", err);
     } finally {
       setLoading(false);
+      console.log("[increment] 增加流程结束");
     }
   };
 
