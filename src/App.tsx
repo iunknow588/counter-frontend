@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Buffer } from "buffer";
 import { Wallet, WalletStrategy } from "@injectivelabs/wallet-ts";
 import { ChainId } from "@injectivelabs/ts-types";
-import { IndexerGrpcMetaApi, MsgExecuteContract, MsgBroadcasterWithPk } from "@injectivelabs/sdk-ts";
+import { IndexerGrpcMetaApi, MsgExecuteContract, MsgBroadcasterWithPk, ChainGrpcBankApi } from "@injectivelabs/sdk-ts";
 import { Network, getNetworkEndpoints } from "@injectivelabs/networks";
 
 // 类型声明，解决 window.keplr 报错
@@ -38,18 +38,24 @@ function App() {
   const [error, setError] = useState<string>("");
   // 私钥（从 Keplr 获取）
   const [privateKey, setPrivateKey] = useState<string>("");
+  // 账户余额
+  const [balance, setBalance] = useState<any>(null);
+  // 余额加载状态
+  const [balanceLoading, setBalanceLoading] = useState<boolean>(false);
 
-  // 钱包策略、合约查询API
+  // 钱包策略、合约查询API、银行API
   const [walletStrategy, setWalletStrategy] = useState<any>(null);
   const [wasmApi, setWasmApi] = useState<any>(null);
+  const [bankApi, setBankApi] = useState<any>(null);
 
   // 测试点击函数
   const testClick = () => {
     console.log("🎯 测试按钮被点击了！");
     console.log("🔑 当前私钥状态:", privateKey ? "已获取" : "未获取");
     console.log("👛 当前钱包状态:", { address, isConnected });
+    console.log("💰 当前余额状态:", { balance, balanceLoading });
     console.log("🌐 网络配置:", { NETWORK, CHAIN_ID });
-    console.log("📡 API 状态:", { wasmApi: !!wasmApi, walletStrategy: !!walletStrategy });
+    console.log("📡 API 状态:", { wasmApi: !!wasmApi, walletStrategy: !!walletStrategy, bankApi: !!bankApi });
     console.log("🔍 Keplr 状态:", { 
       keplrInstalled: !!window.keplr,
       keplrVersion: window.keplr?.version || "未安装"
@@ -65,6 +71,11 @@ function App() {
     // 初始化合约查询 API
     const wasmApi = new IndexerGrpcMetaApi(endpointsForNetwork.grpc);
     setWasmApi(wasmApi);
+
+    // 初始化银行 API
+    const bankApi = new ChainGrpcBankApi(endpointsForNetwork.grpc);
+    setBankApi(bankApi);
+
     console.log("[App] 初始化完成，等待用户连接钱包");
   }, []);
 
@@ -129,7 +140,12 @@ function App() {
           
           setIsConnected(true);
           console.log("[connectWallet] 钱包连接成功，isConnected = true");
-          await fetchCount();
+          
+          // 连接成功后自动查询余额和计数
+          await Promise.all([
+            fetchBalance(),
+            fetchCount()
+          ]);
         } catch (keyError) {
           console.error("[connectWallet] 获取私钥失败:", keyError);
           setError("Failed to get private key from wallet");
@@ -152,6 +168,39 @@ function App() {
     } finally {
       setLoading(false);
       console.log("[connectWallet] 连接流程结束");
+    }
+  };
+
+  // 查询账户余额
+  const fetchBalance = async () => {
+    if (!bankApi || !address) {
+      console.warn("[fetchBalance] 银行API未初始化或地址为空");
+      return;
+    }
+    
+    setBalanceLoading(true);
+    setError("");
+    try {
+      console.log("[fetchBalance] 开始查询账户余额");
+      console.log("[fetchBalance] 查询地址:", address);
+      
+      const response = await bankApi.fetchBalance({
+        accountAddress: address,
+      });
+      console.log("[fetchBalance] 余额查询返回:", response);
+      
+      if (response && response.balances) {
+        setBalance(response.balances);
+        console.log("[fetchBalance] 账户余额:", response.balances);
+      } else {
+        console.warn("[fetchBalance] 余额数据为空");
+        setBalance([]);
+      }
+    } catch (err) {
+      console.error("[fetchBalance] 余额查询异常", err);
+      setError("Failed to fetch account balance");
+    } finally {
+      setBalanceLoading(false);
     }
   };
 
@@ -295,6 +344,7 @@ function App() {
     setAddress("");
     setIsConnected(false);
     setCount(0);
+    setBalance(null);
     setError("");
   };
 
@@ -385,6 +435,52 @@ function App() {
               Disconnect
             </button>
           </div>
+          
+          {/* 账户余额显示 */}
+          <div style={{ marginBottom: "20px", padding: "15px", backgroundColor: "#f8f9fa", borderRadius: "8px", border: "1px solid #e9ecef" }}>
+            <h3 style={{ margin: "0 0 10px 0", color: "#495057" }}>💰 账户余额</h3>
+            {balanceLoading ? (
+              <p style={{ color: "#6c757d", fontStyle: "italic" }}>正在查询余额...</p>
+            ) : balance && balance.length > 0 ? (
+              <div>
+                {balance.map((token: any, index: number) => (
+                  <div key={index} style={{ 
+                    marginBottom: "8px", 
+                    padding: "8px", 
+                    backgroundColor: "white", 
+                    borderRadius: "4px",
+                    border: "1px solid #dee2e6"
+                  }}>
+                    <div style={{ fontWeight: "bold", color: "#495057" }}>
+                      {token.denom === "inj" ? "INJ" : token.denom}
+                    </div>
+                    <div style={{ fontSize: "14px", color: "#6c757d" }}>
+                      余额: {parseFloat(token.amount) / Math.pow(10, 18)} {token.denom === "inj" ? "INJ" : token.denom}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: "#6c757d", fontStyle: "italic" }}>暂无余额数据</p>
+            )}
+            <button
+              onClick={fetchBalance}
+              disabled={balanceLoading}
+              style={{
+                marginTop: "10px",
+                padding: "8px 16px",
+                fontSize: "14px",
+                backgroundColor: balanceLoading ? "#ccc" : "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: balanceLoading ? "not-allowed" : "pointer"
+              }}
+            >
+              {balanceLoading ? "查询中..." : "刷新余额"}
+            </button>
+          </div>
+          
           <h2>Current Count: {count}</h2>
           <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
             <button

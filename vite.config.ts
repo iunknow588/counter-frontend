@@ -20,9 +20,9 @@ export default defineConfig({
     // 开发服务器配置
     port: 5173,
     host: true,
-    // 禁用 CSP 在开发环境中
+    // 完全禁用 CSP 在开发环境中
     headers: {
-      'Content-Security-Policy': "script-src 'self' 'unsafe-eval' 'unsafe-inline'; object-src 'none';"
+      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:;"
     }
   },
   build: {
