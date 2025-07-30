@@ -357,7 +357,7 @@ function App() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <h1>Counter DApp</h1>
+      <h1>Counter DApp - 余额功能已添加 ({new Date().toLocaleTimeString()})</h1>
       <p>Contract Address: {CONTRACT_ADDRESS}</p>
       
       {/* 测试按钮 */}
