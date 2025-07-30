@@ -38,13 +38,14 @@ function App() {
 
   // 初始化钱包策略和API
   useEffect(() => {
-    const strategy = new WalletStrategy({
-      chainId: ChainId.Mainnet,
-      wallet: Wallet.Keplr,
-    });
-    setWalletStrategy(strategy);
-    setBroadcaster(new MsgBroadcaster({ walletStrategy: strategy, network: Network.MainnetLB }));
-    setWasmApi(new IndexerGrpcMetaApi("https://sentry.exchange.grpc-web.injective.network"));
+    console.log("[App] 应用启动，初始化配置");
+    console.log("[App] 使用测试网配置:", { CHAIN_ID, NETWORK, GRPC_URL, CONTRACT_ADDRESS });
+    
+    // 注意：这里不创建 WalletStrategy，因为需要用户先连接钱包
+    // 只初始化 API 实例
+    const wasmApi = new IndexerGrpcMetaApi(GRPC_URL);
+    setWasmApi(wasmApi);
+    console.log("[App] 初始化完成，等待用户连接钱包");
   }, []);
 
   // 连接钱包（参考 Injective 官方文档 WalletStrategy 规范流程）
@@ -53,19 +54,31 @@ function App() {
     setError("");
     try {
       console.log("[connectWallet] 开始连接钱包");
+      
+      // 1. 检查 Keplr 是否安装
       if (!window.keplr) {
         setError("Please install Keplr wallet extension");
         setLoading(false);
         return;
       }
+      
+      // 2. 检查 Keplr 是否有账户
+      console.log("[connectWallet] 检查 Keplr 账户");
+      const accounts = await window.keplr.getAccounts();
+      console.log("[connectWallet] Keplr 账户列表:", accounts);
+      
+      if (!accounts || accounts.length === 0) {
+        setError("Keplr wallet has no accounts. Please create or import an account first.");
+        setLoading(false);
+        return;
+      }
+      
+      // 3. 请求授权连接
       console.log("[connectWallet] 调用 keplr.enable，准备弹出授权界面，chainId:", CHAIN_ID);
       await window.keplr.enable(CHAIN_ID);
       console.log("[connectWallet] keplr.enable 调用完成，用户已授权或已授权过");
-      // 检查 Keplr 是否已连接 Injective 测试网
-      if (window.keplr.experimentalSuggestChain) {
-        console.log("[connectWallet] Keplr 支持 experimentalSuggestChain");
-      }
-      // 2. 创建 Injective 钱包策略（测试网）
+      
+      // 4. 创建 Injective 钱包策略
       console.log("[connectWallet] 创建 WalletStrategy 实例");
       const strategy = new WalletStrategy({
         chainId: CHAIN_ID,
@@ -73,11 +86,12 @@ function App() {
       });
       setWalletStrategy(strategy);
       setBroadcaster(new MsgBroadcaster({ walletStrategy: strategy, network: NETWORK }));
-      setWasmApi(new IndexerGrpcMetaApi(GRPC_URL));
-      // 3. 获取钱包地址
+      
+      // 5. 获取钱包地址
       console.log("[connectWallet] 调用 strategy.getAddresses()");
       const addresses = await strategy.getAddresses();
       console.log("[connectWallet] 获取到钱包地址:", addresses);
+      
       if (addresses.length > 0) {
         setAddress(addresses[0]);
         setIsConnected(true);
@@ -88,8 +102,16 @@ function App() {
         console.warn("[connectWallet] 钱包未返回地址");
       }
     } catch (err: any) {
-      setError(`[connectWallet] Failed: ${err?.message || err}`);
       console.error("[connectWallet] 连接钱包异常", err);
+      
+      // 更详细的错误处理
+      if (err.code === 4001) {
+        setError("User rejected the connection request");
+      } else if (err.message && err.message.includes("wallet must has at least one account")) {
+        setError("Keplr wallet has no accounts. Please create or import an account first.");
+      } else {
+        setError(`Connection failed: ${err?.message || err}`);
+      }
     } finally {
       setLoading(false);
       console.log("[connectWallet] 连接流程结束");
