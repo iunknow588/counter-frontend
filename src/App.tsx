@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { Buffer } from "buffer";
-import { Wallet, WalletStrategy, MsgBroadcaster } from "@injectivelabs/wallet-ts";
+import { Wallet, WalletStrategy } from "@injectivelabs/wallet-ts";
 import { ChainId } from "@injectivelabs/ts-types";
-import { IndexerGrpcMetaApi } from "@injectivelabs/sdk-ts";
-import { Network } from "@injectivelabs/networks";
-import { MsgExecuteContract } from "@injectivelabs/sdk-ts";
+import { IndexerGrpcMetaApi, MsgExecuteContract, MsgBroadcasterWithPk } from "@injectivelabs/sdk-ts";
+import { Network, getNetworkEndpoints } from "@injectivelabs/networks";
 
 // 类型声明，解决 window.keplr 报错
 declare global {
@@ -13,13 +12,20 @@ declare global {
   }
 }
 
-// 测试网配置
-const CHAIN_ID = ChainId.Testnet;
+// 测试网配置 - 使用实际运营代码的方式
 const NETWORK = Network.TestnetK8s;
-const GRPC_URL = "https://sentry.testnet.exchange.grpc-web.injective.network";
+const endpointsForNetwork = getNetworkEndpoints(NETWORK);
+const CHAIN_ID = ChainId.Testnet;
 const CONTRACT_ADDRESS = "inj1qe06nfmzk70xg78knp5qsn3e6fsltqu9sgan8m";
 
+// 测试日志功能
+console.log("🚀 App.tsx 已加载，测试日志功能");
+console.log("📅 当前时间:", new Date().toLocaleString());
+console.log("🌐 网络配置:", { NETWORK, CHAIN_ID, endpointsForNetwork });
+
 function App() {
+  console.log("🔧 App 组件开始渲染");
+  
   // 计数器状态
   const [count, setCount] = useState<number>(0);
   // 钱包地址
@@ -30,20 +36,34 @@ function App() {
   const [loading, setLoading] = useState<boolean>(false);
   // 错误信息
   const [error, setError] = useState<string>("");
+  // 私钥（从 Keplr 获取）
+  const [privateKey, setPrivateKey] = useState<string>("");
 
-  // 钱包策略、广播器、合约查询API
+  // 钱包策略、合约查询API
   const [walletStrategy, setWalletStrategy] = useState<any>(null);
-  const [broadcaster, setBroadcaster] = useState<any>(null);
   const [wasmApi, setWasmApi] = useState<any>(null);
 
-  // 初始化钱包策略和API
+  // 测试点击函数
+  const testClick = () => {
+    console.log("🎯 测试按钮被点击了！");
+    console.log("🔑 当前私钥状态:", privateKey ? "已获取" : "未获取");
+    console.log("👛 当前钱包状态:", { address, isConnected });
+    console.log("🌐 网络配置:", { NETWORK, CHAIN_ID });
+    console.log("📡 API 状态:", { wasmApi: !!wasmApi, walletStrategy: !!walletStrategy });
+    console.log("🔍 Keplr 状态:", { 
+      keplrInstalled: !!window.keplr,
+      keplrVersion: window.keplr?.version || "未安装"
+    });
+    alert("测试按钮被点击了！请检查控制台日志。");
+  };
+
+  // 初始化 API
   useEffect(() => {
     console.log("[App] 应用启动，初始化配置");
-    console.log("[App] 使用测试网配置:", { CHAIN_ID, NETWORK, GRPC_URL, CONTRACT_ADDRESS });
+    console.log("[App] 使用测试网配置:", { NETWORK, CHAIN_ID, endpointsForNetwork });
     
-    // 注意：这里不创建 WalletStrategy，因为需要用户先连接钱包
-    // 只初始化 API 实例
-    const wasmApi = new IndexerGrpcMetaApi(GRPC_URL);
+    // 初始化合约查询 API
+    const wasmApi = new IndexerGrpcMetaApi(endpointsForNetwork.grpc);
     setWasmApi(wasmApi);
     console.log("[App] 初始化完成，等待用户连接钱包");
   }, []);
@@ -85,7 +105,6 @@ function App() {
         wallet: Wallet.Keplr,
       });
       setWalletStrategy(strategy);
-      setBroadcaster(new MsgBroadcaster({ walletStrategy: strategy, network: NETWORK }));
       
       // 5. 获取钱包地址
       console.log("[connectWallet] 调用 strategy.getAddresses()");
@@ -93,10 +112,28 @@ function App() {
       console.log("[connectWallet] 获取到钱包地址:", addresses);
       
       if (addresses.length > 0) {
-        setAddress(addresses[0]);
-        setIsConnected(true);
-        console.log("[connectWallet] 钱包连接成功，isConnected = true");
-        await fetchCount();
+        const walletAddress = addresses[0];
+        setAddress(walletAddress);
+        
+        // 6. 获取私钥 - 这是关键步骤
+        console.log("[connectWallet] 尝试获取私钥");
+        try {
+          // 从 Keplr 获取私钥
+          const privateKeyHex = await window.keplr.getEnigmaUtils(CHAIN_ID).getTxEncryptionKey(walletAddress);
+          console.log("[connectWallet] 获取到私钥（已加密）");
+          
+          // 解密私钥（这里需要用户输入密码）
+          const decryptedPrivateKey = await window.keplr.getEnigmaUtils(CHAIN_ID).decrypt(walletAddress, privateKeyHex);
+          setPrivateKey(decryptedPrivateKey);
+          console.log("[connectWallet] 私钥解密成功");
+          
+          setIsConnected(true);
+          console.log("[connectWallet] 钱包连接成功，isConnected = true");
+          await fetchCount();
+        } catch (keyError) {
+          console.error("[connectWallet] 获取私钥失败:", keyError);
+          setError("Failed to get private key from wallet");
+        }
       } else {
         setError("No addresses found in wallet");
         console.warn("[connectWallet] 钱包未返回地址");
@@ -124,24 +161,32 @@ function App() {
     setError("");
     try {
       console.log("[fetchCount] 查询合约计数");
+      console.log("[fetchCount] 合约地址:", CONTRACT_ADDRESS);
+      
       const response = await wasmApi.fetchSmartContractState({
         address: CONTRACT_ADDRESS,
         query: { get_count: {} }
       });
       console.log("[fetchCount] 合约返回:", response);
-      // 解析链上返回的 base64 数据
-      const countData = JSON.parse(Buffer.from(response.data, "base64").toString("utf-8"));
-      setCount(countData.count || 0);
-      console.log("[fetchCount] 当前计数:", countData.count);
+      
+      if (response && response.data) {
+        // 解析链上返回的 base64 数据
+        const countData = JSON.parse(Buffer.from(response.data, "base64").toString("utf-8"));
+        setCount(countData.count || 0);
+        console.log("[fetchCount] 当前计数:", countData.count);
+      } else {
+        console.warn("[fetchCount] 合约返回数据为空");
+        setCount(0);
+      }
     } catch (err) {
-      setError("Failed to fetch count from contract");
       console.error("[fetchCount] 查询异常", err);
+      setError("Failed to fetch count from contract");
     }
   };
 
   // 发起链上交易时，MsgBroadcaster 会自动弹出钱包签名界面
   const increment = async () => {
-    if (!address || !broadcaster) {
+    if (!address || !walletStrategy) {
       setError("Wallet not connected");
       console.warn("[increment] 钱包未连接，无法发起交易");
       return;
@@ -159,9 +204,15 @@ function App() {
       });
       console.log("[increment] 构造的消息:", msg);
       console.log("[increment] 调用 broadcaster.broadcast，准备弹出签名界面");
+      
+      // 使用 MsgBroadcasterWithPk 进行广播 - 参考实际运营代码
+      const broadcaster = new MsgBroadcasterWithPk({
+        network: NETWORK,
+        privateKey: privateKey, // 使用私钥进行签名
+      });
+
       await broadcaster.broadcast({
         msgs: [msg],
-        injectiveAddress: address,
       });
       console.log("[increment] 交易已广播，开始轮询链上计数");
       let retries = 10;
@@ -192,7 +243,7 @@ function App() {
 
   // 重置计数器
   const reset = async () => {
-    if (!address || !broadcaster) {
+    if (!address || !walletStrategy) {
       setError("Wallet not connected");
       return;
     }
@@ -205,9 +256,15 @@ function App() {
         msg: { reset: { count: 0 } },
         funds: [],
       });
+      
+      // 使用 MsgBroadcasterWithPk 进行广播 - 参考实际运营代码
+      const broadcaster = new MsgBroadcasterWithPk({
+        network: NETWORK,
+        privateKey: privateKey, // 使用私钥进行签名
+      });
+
       await broadcaster.broadcast({
         msgs: [msg],
-        injectiveAddress: address,
       });
       // 轮询链上数据，直到计数归零或超时
       let retries = 10;
@@ -252,6 +309,29 @@ function App() {
     <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
       <h1>Counter DApp</h1>
       <p>Contract Address: {CONTRACT_ADDRESS}</p>
+      
+      {/* 测试按钮 */}
+      <div style={{ marginBottom: "20px", padding: "10px", backgroundColor: "#f0f0f0", borderRadius: "4px" }}>
+        <p>🔍 调试测试区域：</p>
+        <button
+          onClick={testClick}
+          style={{
+            padding: "8px 16px",
+            fontSize: "14px",
+            backgroundColor: "#ff9800",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            marginRight: "10px"
+          }}
+        >
+          测试日志功能
+        </button>
+        <span style={{ fontSize: "12px", color: "#666" }}>
+          点击此按钮测试 console.log 是否工作
+        </span>
+      </div>
       {error && (
         <div style={{
           padding: "10px",
