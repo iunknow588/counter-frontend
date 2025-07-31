@@ -5,6 +5,11 @@ import { ChainId } from "@injectivelabs/ts-types";
 import { IndexerGrpcMetaApi, MsgExecuteContract, MsgBroadcasterWithPk, ChainGrpcBankApi } from "@injectivelabs/sdk-ts";
 import { Network, getNetworkEndpoints } from "@injectivelabs/networks";
 
+// 立即执行的测试日志
+console.log("🔥 文件加载测试 - App.tsx 开始加载");
+console.log("⏰ 加载时间:", new Date().toISOString());
+console.log("🌍 运行环境:", typeof window !== 'undefined' ? '浏览器' : 'Node.js');
+
 // 类型声明，解决 window.keplr 报错
 declare global {
   interface Window {
@@ -13,18 +18,43 @@ declare global {
 }
 
 // 测试网配置 - 使用实际运营代码的方式
-const NETWORK = Network.TestnetK8s;
+const NETWORK = Network.Testnet;
 const endpointsForNetwork = getNetworkEndpoints(NETWORK);
-const CHAIN_ID = ChainId.Testnet;
+const CHAIN_ID = "injective-888" as any; // 使用正确的测试网链ID
 const CONTRACT_ADDRESS = "inj1qe06nfmzk70xg78knp5qsn3e6fsltqu9sgan8m";
 
 // 测试日志功能
 console.log("🚀 App.tsx 已加载，测试日志功能");
 console.log("📅 当前时间:", new Date().toLocaleString());
 console.log("🌐 网络配置:", { NETWORK, CHAIN_ID, endpointsForNetwork });
+console.log("🔗 端点详情:", {
+  grpc: endpointsForNetwork.grpc,
+  indexer: endpointsForNetwork.indexer
+});
 
 function App() {
   console.log("🔧 App 组件开始渲染");
+  
+  // 添加明显的测试日志
+  console.error("🚨 错误日志测试 - 这应该很明显");
+  console.warn("⚠️ 警告日志测试 - 这应该很明显");
+  console.info("ℹ️ 信息日志测试 - 这应该很明显");
+  
+  // 测试源码映射 - 故意创建一个错误
+  const testSourceMap = () => {
+    console.log("🧪 测试源码映射功能");
+    // 这行代码应该能在开发者工具中显示正确的行号
+    throw new Error("🔍 这是一个测试错误，用于验证源码映射是否工作");
+  };
+  
+  // 如果控制台不可见，使用 alert 作为备选
+  if (typeof window !== 'undefined') {
+    setTimeout(() => {
+      console.log("🔄 延迟测试日志 - 3秒后执行");
+      // 3秒后触发测试错误
+      // testSourceMap(); // 暂时注释掉，避免页面崩溃
+    }, 3000);
+  }
   
   // 计数器状态
   const [count, setCount] = useState<number>(0);
@@ -85,6 +115,94 @@ function App() {
     alert("测试按钮被点击了！请检查控制台日志。");
   };
 
+  // 专门测试 Keplr 连接
+  const testKeplrConnection = async () => {
+    console.log("🔗 开始测试 Keplr 连接...");
+    
+    if (!window.keplr) {
+      alert("❌ Keplr 未安装！请先安装 Keplr 钱包扩展。");
+      return;
+    }
+    
+    try {
+      // 1. 测试基本功能
+      console.log("📋 测试获取账户...");
+      const accounts = await window.keplr.getAccounts();
+      console.log("📋 账户列表:", accounts);
+      
+      if (accounts.length === 0) {
+        alert("❌ Keplr 中没有账户！请先创建或导入账户。");
+        return;
+      }
+      
+      // 2. 测试网络支持
+      console.log("🌐 测试网络支持...");
+      const supportedChains = await window.keplr.getSupportedChains();
+      console.log("🌐 支持的链:", supportedChains);
+      
+      // 3. 测试 enable 调用
+      console.log("🔐 测试 enable 调用...");
+      console.log("🔗 目标链ID:", CHAIN_ID);
+      
+      await window.keplr.enable(CHAIN_ID);
+      console.log("✅ enable 调用成功！");
+      
+      // 4. 测试获取地址
+      console.log("📍 测试获取地址...");
+      const address = await window.keplr.getKey(CHAIN_ID);
+      console.log("📍 获取到的地址:", address);
+      
+      alert("✅ Keplr 连接测试成功！\n\n地址: " + address.bech32Address + "\n\n请检查控制台获取详细信息。");
+      
+    } catch (error: any) {
+      console.error("❌ Keplr 连接测试失败:", error);
+      alert("❌ Keplr 连接测试失败！\n\n错误: " + error.message + "\n\n请检查控制台获取详细信息。");
+    }
+  };
+
+  // 测试网络端点连接
+  const testNetworkEndpoints = async () => {
+    console.log("🌐 开始测试网络端点连接...");
+    console.log("📡 当前网络配置:", { NETWORK, CHAIN_ID, endpointsForNetwork });
+    
+    try {
+      // 测试 gRPC 端点
+      console.log("🔗 测试 gRPC 端点:", endpointsForNetwork.grpc);
+      
+      // 测试 Indexer 端点
+      console.log("📊 测试 Indexer 端点:", endpointsForNetwork.indexer);
+      
+      // 尝试创建一个简单的 API 实例来测试连接
+      if (wasmApi) {
+        console.log("✅ WASM API 已初始化");
+        try {
+          // 尝试查询一个简单的合约状态
+          const testResponse = await wasmApi.fetchSmartContractState({
+            address: CONTRACT_ADDRESS,
+            query: { get_count: {} }
+          });
+          console.log("✅ 合约查询成功:", testResponse);
+        } catch (contractError) {
+          console.warn("⚠️ 合约查询失败，但 API 连接正常:", contractError);
+        }
+      } else {
+        console.warn("⚠️ WASM API 未初始化");
+      }
+      
+      if (bankApi) {
+        console.log("✅ Bank API 已初始化");
+      } else {
+        console.warn("⚠️ Bank API 未初始化");
+      }
+      
+      alert("✅ 网络端点测试完成！\n\n请检查控制台获取详细信息。");
+      
+    } catch (error: any) {
+      console.error("❌ 网络端点测试失败:", error);
+      alert("❌ 网络端点测试失败！\n\n错误: " + error.message + "\n\n请检查控制台获取详细信息。");
+    }
+  };
+
   // 初始化 API
   useEffect(() => {
     console.log("[App] 应用启动，初始化配置");
@@ -107,6 +225,7 @@ function App() {
     setError("");
     try {
       console.log("[connectWallet] 开始连接钱包");
+      console.log("[connectWallet] 网络配置:", { NETWORK, CHAIN_ID, endpointsForNetwork });
       console.log("[connectWallet] Keplr 对象状态:", {
         keplrExists: !!window.keplr,
         keplrType: typeof window.keplr,
@@ -138,7 +257,43 @@ function App() {
         return;
       }
       
-      // 3. 请求授权连接
+      // 3. 检查网络支持
+      console.log("[connectWallet] 检查网络支持");
+      try {
+        const supportedChains = await window.keplr.getSupportedChains();
+        console.log("[connectWallet] 支持的链:", supportedChains);
+        
+        if (!supportedChains.includes(CHAIN_ID)) {
+          console.warn("[connectWallet] 当前链不在支持列表中，尝试添加网络");
+          // 尝试添加网络到 Keplr
+          try {
+            await window.keplr.experimentalSuggestChain({
+              chainId: CHAIN_ID,
+              chainName: "Injective Testnet",
+              rpc: endpointsForNetwork.grpc,
+              rest: endpointsForNetwork.indexer,
+              bip44: {
+                coinType: 60,
+              },
+              bech32Config: {
+                bech32PrefixAccAddr: "inj",
+                bech32PrefixAccPub: "injpub",
+                bech32PrefixValAddr: "injvaloper",
+                bech32PrefixValPub: "injvaloperpub",
+                bech32PrefixConsAddr: "injvalcons",
+                bech32PrefixConsPub: "injvalconspub",
+              },
+            });
+            console.log("[connectWallet] 网络添加成功");
+          } catch (addChainError) {
+            console.warn("[connectWallet] 添加网络失败:", addChainError);
+          }
+        }
+      } catch (chainError) {
+        console.warn("[connectWallet] 检查网络支持失败:", chainError);
+      }
+      
+      // 4. 请求授权连接 - 这里应该会弹出授权界面
       console.log("[connectWallet] 调用 keplr.enable，准备弹出授权界面，chainId:", CHAIN_ID);
       try {
         await window.keplr.enable(CHAIN_ID);
@@ -154,7 +309,7 @@ function App() {
         return;
       }
       
-      // 4. 创建 Injective 钱包策略
+      // 5. 创建 Injective 钱包策略
       console.log("[connectWallet] 创建 WalletStrategy 实例");
       const strategy = new WalletStrategy({
         chainId: CHAIN_ID,
@@ -162,7 +317,7 @@ function App() {
       });
       setWalletStrategy(strategy);
       
-      // 5. 获取钱包地址
+      // 6. 获取钱包地址
       console.log("[connectWallet] 调用 strategy.getAddresses()");
       const addresses = await strategy.getAddresses();
       console.log("[connectWallet] 获取到钱包地址:", addresses);
@@ -171,7 +326,7 @@ function App() {
         const walletAddress = addresses[0];
         setAddress(walletAddress);
         
-        // 6. 获取私钥 - 这是关键步骤
+        // 7. 获取私钥 - 这是关键步骤
         console.log("[connectWallet] 尝试获取私钥");
         try {
           // 从 Keplr 获取私钥
@@ -440,8 +595,53 @@ function App() {
         >
           测试日志功能
         </button>
+        <button
+          onClick={testSourceMap}
+          style={{
+            padding: "8px 16px",
+            fontSize: "14px",
+            backgroundColor: "#f44336",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            marginRight: "10px"
+          }}
+        >
+          测试源码映射
+        </button>
+        <button
+          onClick={testKeplrConnection}
+          style={{
+            padding: "8px 16px",
+            fontSize: "14px",
+            backgroundColor: "#4CAF50",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            marginRight: "10px"
+          }}
+        >
+          测试 Keplr 连接
+        </button>
+        <button
+          onClick={testNetworkEndpoints}
+          style={{
+            padding: "8px 16px",
+            fontSize: "14px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            marginRight: "10px"
+          }}
+        >
+          测试网络端点
+        </button>
         <span style={{ fontSize: "12px", color: "#666" }}>
-          点击此按钮测试 console.log 是否工作
+          点击按钮测试功能
         </span>
       </div>
       {error && (
