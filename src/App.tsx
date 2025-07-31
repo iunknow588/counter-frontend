@@ -49,7 +49,7 @@ function App() {
   const [bankApi, setBankApi] = useState<any>(null);
 
   // 测试点击函数
-  const testClick = () => {
+  const testClick = async () => {
     console.log("🎯 测试按钮被点击了！");
     console.log("🔑 当前私钥状态:", privateKey ? "已获取" : "未获取");
     console.log("👛 当前钱包状态:", { address, isConnected });
@@ -58,8 +58,30 @@ function App() {
     console.log("📡 API 状态:", { wasmApi: !!wasmApi, walletStrategy: !!walletStrategy, bankApi: !!bankApi });
     console.log("🔍 Keplr 状态:", { 
       keplrInstalled: !!window.keplr,
+      keplrType: typeof window.keplr,
       keplrVersion: window.keplr?.version || "未安装"
     });
+    
+    // 测试 Keplr 功能
+    if (window.keplr) {
+      try {
+        console.log("🔍 测试 Keplr 功能...");
+        const accounts = await window.keplr.getAccounts();
+        console.log("📋 Keplr 账户:", accounts);
+        
+        // 测试网络支持
+        const supportedChains = await window.keplr.getSupportedChains();
+        console.log("🌐 支持的链:", supportedChains);
+        
+        // 测试当前链状态
+        const currentChain = await window.keplr.getChainId();
+        console.log("🔗 当前链ID:", currentChain);
+        
+      } catch (keplrError) {
+        console.error("❌ Keplr 功能测试失败:", keplrError);
+      }
+    }
+    
     alert("测试按钮被点击了！请检查控制台日志。");
   };
 
@@ -85,6 +107,11 @@ function App() {
     setError("");
     try {
       console.log("[connectWallet] 开始连接钱包");
+      console.log("[connectWallet] Keplr 对象状态:", {
+        keplrExists: !!window.keplr,
+        keplrType: typeof window.keplr,
+        keplrVersion: window.keplr?.version || "未安装"
+      });
       
       // 1. 检查 Keplr 是否安装
       if (!window.keplr) {
@@ -95,19 +122,37 @@ function App() {
       
       // 2. 检查 Keplr 是否有账户
       console.log("[connectWallet] 检查 Keplr 账户");
-      const accounts = await window.keplr.getAccounts();
-      console.log("[connectWallet] Keplr 账户列表:", accounts);
-      
-      if (!accounts || accounts.length === 0) {
-        setError("Keplr wallet has no accounts. Please create or import an account first.");
+      try {
+        const accounts = await window.keplr.getAccounts();
+        console.log("[connectWallet] Keplr 账户列表:", accounts);
+        
+        if (!accounts || accounts.length === 0) {
+          setError("Keplr wallet has no accounts. Please create or import an account first.");
+          setLoading(false);
+          return;
+        }
+      } catch (accountError) {
+        console.error("[connectWallet] 获取账户失败:", accountError);
+        setError("Failed to get accounts from Keplr wallet");
         setLoading(false);
         return;
       }
       
       // 3. 请求授权连接
       console.log("[connectWallet] 调用 keplr.enable，准备弹出授权界面，chainId:", CHAIN_ID);
-      await window.keplr.enable(CHAIN_ID);
-      console.log("[connectWallet] keplr.enable 调用完成，用户已授权或已授权过");
+      try {
+        await window.keplr.enable(CHAIN_ID);
+        console.log("[connectWallet] keplr.enable 调用完成，用户已授权或已授权过");
+      } catch (enableError: any) {
+        console.error("[connectWallet] keplr.enable 失败:", enableError);
+        if (enableError.code === 4001) {
+          setError("User rejected the connection request");
+        } else {
+          setError(`Failed to enable Keplr: ${enableError.message}`);
+        }
+        setLoading(false);
+        return;
+      }
       
       // 4. 创建 Injective 钱包策略
       console.log("[connectWallet] 创建 WalletStrategy 实例");
@@ -142,10 +187,10 @@ function App() {
           console.log("[connectWallet] 钱包连接成功，isConnected = true");
           
           // 连接成功后自动查询余额和计数
-          await Promise.all([
-            fetchBalance(),
-            fetchCount()
-          ]);
+          // 注意：先设置地址，再查询余额
+          console.log("[connectWallet] 开始查询余额和计数...");
+          await fetchCount();
+          await fetchBalance();
         } catch (keyError) {
           console.error("[connectWallet] 获取私钥失败:", keyError);
           setError("Failed to get private key from wallet");
@@ -173,8 +218,17 @@ function App() {
 
   // 查询账户余额
   const fetchBalance = async () => {
-    if (!bankApi || !address) {
-      console.warn("[fetchBalance] 银行API未初始化或地址为空");
+    console.log("[fetchBalance] 开始查询余额，检查条件...");
+    console.log("[fetchBalance] bankApi 状态:", !!bankApi);
+    console.log("[fetchBalance] address 状态:", address);
+    
+    if (!bankApi) {
+      console.warn("[fetchBalance] 银行API未初始化");
+      return;
+    }
+    
+    if (!address) {
+      console.warn("[fetchBalance] 地址为空，无法查询余额");
       return;
     }
     
@@ -183,6 +237,7 @@ function App() {
     try {
       console.log("[fetchBalance] 开始查询账户余额");
       console.log("[fetchBalance] 查询地址:", address);
+      console.log("[fetchBalance] 使用的 API:", bankApi);
       
       const response = await bankApi.fetchBalance({
         accountAddress: address,
@@ -192,15 +247,22 @@ function App() {
       if (response && response.balances) {
         setBalance(response.balances);
         console.log("[fetchBalance] 账户余额:", response.balances);
+        console.log("[fetchBalance] 余额数量:", response.balances.length);
       } else {
         console.warn("[fetchBalance] 余额数据为空");
         setBalance([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("[fetchBalance] 余额查询异常", err);
+      console.error("[fetchBalance] 错误详情:", {
+        message: err?.message || "Unknown error",
+        stack: err?.stack || "No stack trace",
+        name: err?.name || "Unknown error type"
+      });
       setError("Failed to fetch account balance");
     } finally {
       setBalanceLoading(false);
+      console.log("[fetchBalance] 余额查询完成");
     }
   };
 
@@ -463,22 +525,44 @@ function App() {
             ) : (
               <p style={{ color: "#6c757d", fontStyle: "italic" }}>暂无余额数据</p>
             )}
-            <button
-              onClick={fetchBalance}
-              disabled={balanceLoading}
-              style={{
-                marginTop: "10px",
-                padding: "8px 16px",
-                fontSize: "14px",
-                backgroundColor: balanceLoading ? "#ccc" : "#28a745",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: balanceLoading ? "not-allowed" : "pointer"
-              }}
-            >
-              {balanceLoading ? "查询中..." : "刷新余额"}
-            </button>
+            <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+              <button
+                onClick={fetchBalance}
+                disabled={balanceLoading}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "14px",
+                  backgroundColor: balanceLoading ? "#ccc" : "#28a745",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: balanceLoading ? "not-allowed" : "pointer"
+                }}
+              >
+                {balanceLoading ? "查询中..." : "刷新余额"}
+              </button>
+              <button
+                onClick={() => {
+                  console.log("🔍 手动检查余额状态:", {
+                    balance,
+                    balanceLoading,
+                    address,
+                    bankApi: !!bankApi
+                  });
+                }}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "14px",
+                  backgroundColor: "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer"
+                }}
+              >
+                调试余额
+              </button>
+            </div>
           </div>
           
           <h2>Current Count: {count}</h2>
